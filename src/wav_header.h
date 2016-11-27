@@ -1,6 +1,6 @@
 /* wav _header.h defines a structure to hold the contents of a wav files header information */
 
-struct wav_header {
+struct WavHeader {
   //first 4 bytes of file, marks file as riff file. bytes 1-4
   unsigned char file_description_header[4];
   //next 4 bytes of file. bytes 5-8
