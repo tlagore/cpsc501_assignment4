@@ -7,7 +7,11 @@ struct WavHeader getHeaderInfo(FILE *fp);
 void displayHeaderInfo(struct WavHeader header);
 void displayArrayHeaderField(char *arr, int size, char *fieldName);
 void displayArray(char *arr, int size);
-float* getWavData(FILE *fp, int data_size);
+int* getWavData(FILE *fp, int data_size);
 int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *output, int o_size);
+float* intArrToFloat(int* arr, int size, float divisor, int free);
+void displayIntArrData(int *arr, int numEls);
+void displayFloatArrData(float *arr, int numEls);
+
 
 #endif

@@ -16,12 +16,16 @@ int main(int argc, char*argv[])
   char *wav_file_str,
     *ir_file_str;
 
-  float *wav_data,
+  int *wav_data,
     *ir_data,
     *output;
 
-  unsigned char out_size;
+  float *fwav_data,
+    *fir_data,
+    *foutput;
   
+  unsigned char out_size;
+
   system("clear");
   
   printf("***********************************\n");
@@ -59,16 +63,28 @@ int main(int argc, char*argv[])
     printf("Impulse response file information:\n");
     displayHeaderInfo(ir_header);
 
-    
     wav_data = getWavData(wav_file, wav_header.data_size);
+    printf("done getWavData\n");
+    displayIntArrData(wav_data, 10);
     //done with file, have header and data
     fclose(wav_file);
+    printf("done close wav_file\n");
+    
+    fwav_data = intArrToFloat(wav_data, wav_header.data_size, 32768, TRUE);    
+    displayFloatArrData(fwav_data, 10);
+
+    printf("done with intArrToFloat\n");
     
     ir_data = getWavData(ir_file, ir_header.data_size);
+    displayIntArrData(ir_data, 10);
     fclose(ir_file);
+    fir_data = intArrToFloat(ir_data, ir_header.data_size, 32768, TRUE);
+    displayFloatArrData(fir_data, 10);
     
     out_size = wav_header.data_size + ir_header.data_size - 1;
     output = malloc(out_size);
+
+    printf("out_size: %d\n", out_size);
     
     if(wav_data == NULL){
       printf("Error allocating memory for wav file data.\n");
@@ -80,11 +96,37 @@ int main(int argc, char*argv[])
       printf("Error allocating memory for output file data.\n");
       printf("Exitting...\n");
     }else{
-      convolve(wav_data, wav_header.data_size, ir_data, ir_header.data_size, output, out_size);
+      convolve(fwav_data, wav_header.data_size, fir_data, ir_header.data_size, foutput, out_size);
     }
   }
    
   return 0;
+}
+
+/*
+ * Function: intArrToFloat
+ *
+ * Description: takes in a 
+ */
+float* intArrToFloat(int* arr, int size, float divisor, int doFree){
+  float *toReturn = malloc(size);
+  int i;
+
+  printf("inside intArrToFloat\n");
+  printf("%d\n", size);
+  for(i = 0; i < size; i++){
+    if(i >= 2040820)
+      printf("%d\n", i);
+    toReturn[i] = (float)(arr[i]) / divisor;
+  }
+
+  printf("arr copied\n");
+
+  if(doFree == TRUE){
+    free(arr);
+  }
+
+  return toReturn;
 }
 
 /*
@@ -93,8 +135,8 @@ int main(int argc, char*argv[])
  * Description: 
  */
 
-float* getWavData(FILE *fp, int data_size){
-  float *outputBuffer = (float*)malloc(data_size);
+int* getWavData(FILE *fp, int data_size){
+  int *outputBuffer = (int*)malloc(data_size);
 
   if(fp != NULL && outputBuffer != NULL){
     //read data_size BYTES from fp into outputBuffer
@@ -215,4 +257,30 @@ void displayArray(char *arr, int size){
   }
   
   return;
+}
+
+/*
+ *
+ */
+void displayIntArrData(int *arr, int numEls){
+  int i;
+
+  for(i = 0; i < numEls - 1; i++)
+    printf("%d, ", arr[i]);
+
+  printf("%d\n", arr[i]);
+}
+
+/*
+ *
+ */
+void displayFloatArrData(float *arr, int numEls){
+  int i;
+
+  printf("inside display float\n");
+  
+  for(i = 0; i < numEls - 1; i++)
+    printf("%f, ", arr[i]);
+
+  printf("%f\n", arr[i]);
 }
