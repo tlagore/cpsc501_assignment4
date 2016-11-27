@@ -87,12 +87,16 @@ int main(int argc, char*argv[])
   return 0;
 }
 
+/*
+ * Function: getWavData
+ * 
+ * Description: 
+ */
+
 float* getWavData(FILE *fp, int data_size){
   float *outputBuffer = (float*)malloc(data_size);
 
   if(fp != NULL && outputBuffer != NULL){
-    //add size of header to file pointer so we are looking at data
-
     //read data_size BYTES from fp into outputBuffer
     fread(outputBuffer, BYTE, data_size, fp);
   }
@@ -131,6 +135,12 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
   return success;
 }
 
+/*
+ * Function: getHeaderInfo
+ *
+ * Description: getHeaderInfo takes in a file (assumed to be a wav file) and reads
+ * the first 44 bytes into a header file struct.
+ */
 struct WavHeader getHeaderInfo(FILE *fp){
   struct WavHeader header;
   char header_buffer[HEADER_SIZE];
@@ -146,11 +156,11 @@ struct WavHeader getHeaderInfo(FILE *fp){
 
 
 
-/**
-   displayHeaderInfo takes in a WavHeader struct and displays all the fields to screen
-
-   as each char array is *not* null terminated to aid with memcpy uses, char arrays must be printed
-   explicitly.
+/*
+ * displayHeaderInfo takes in a WavHeader struct and displays all the fields to screen
+ *
+ * as each char array is *not* null terminated to aid with memcpy uses, char arrays must
+ *  printed explicitly.
  */
 void displayHeaderInfo(struct WavHeader header){
   
@@ -178,15 +188,23 @@ void displayHeaderInfo(struct WavHeader header){
   return;
 }
 
-
+/*
+ * Function: displayArrayHeaderField
+ * 
+ * Description: prints an arry field to screen with a specified header fieldName
+ * 
+ */
 void displayArrayHeaderField(char *arr, int size, char *fieldName){
   printf("%s: ", fieldName);
   displayArray(arr, size);
   printf("\n"); 
 }
-/**
-   displayArray takes in a char array and a size and prints that number of characters of the array to screen
 
+/*
+ * Function: displayArray 
+ * 
+ * Description: takes in a char array and a size and prints that number of characters of 
+ * the array to screen
  */
 void displayArray(char *arr, int size){
   int i;
