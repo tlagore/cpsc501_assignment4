@@ -1,10 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 //User defined header files
 #include "wav_header.h"
 
+#define BYTE 1
+
 struct WavHeader getHeaderInfo(FILE *fp);
+void displayHeaderInfo(struct WavHeader header);
+void displayArrayHeaderField(char *arr, int size, char *fieldName);
+void displayArray(char *arr, int size);
 
 int main(int argc, char*argv[])
 {
@@ -15,6 +21,9 @@ int main(int argc, char*argv[])
   char *wav_file_str,
     *ir_file_str;
 
+  char *wav_data;
+  char *ir_data;
+  
   system("clear");
   
   printf("***********************************\n");
@@ -43,7 +52,16 @@ int main(int argc, char*argv[])
   }else{
     printf("Files opened successfully. Reading in header information for files.\n");
     wav_header = getHeaderInfo(wav_file);
-    printf("%d\n", wav_header.file_size);
+    ir_header = getHeaderInfo(ir_file);
+
+    printf("Wav file information:\n");
+    displayHeaderInfo(wav_header);
+    printf("\n");
+    
+    printf("Impulse response file information:\n");
+    displayHeaderInfo(ir_header);
+
+    wav_data = malloc(wav_header.data_size);
   }
   
   
@@ -52,11 +70,68 @@ int main(int argc, char*argv[])
 
 struct WavHeader getHeaderInfo(FILE *fp){
   struct WavHeader header;
-  
+  char header_buffer[HEADER_SIZE];
+  int i;
+  int offset = 0;
   
   if(fp != NULL){
-    printf("we remembered how to call a function!\n");
-    header.file_size = 200;
-    return header;
+    fread(&header, BYTE, HEADER_SIZE, fp);
   }
+  
+  return header;
+}
+
+
+
+/**
+   displayHeaderInfo takes in a WavHeader struct and displays all the fields to screen
+
+   as each char array is *not* null terminated to aid with memcpy uses, char arrays must be printed
+   explicitly.
+ */
+void displayHeaderInfo(struct WavHeader header){
+  
+  displayArrayHeaderField(header.file_description_header, 4, "File Description");
+  printf("  File Size: %d Bytes\n", header.file_size);
+  displayArrayHeaderField(header.file_type, 4, "  File Type");
+
+  printf("\nSubchunk ");
+  displayArray(header.format_description_header, 4);
+  printf("\n");
+  
+  printf("  Audio Format: %d\n", header.format_type);
+  printf("  Number of channels: %d\n", header.num_channels);
+  printf("  Sample Rate: %d\n", header.sample_rate);
+  printf("  Byte Rate: %d\n", header.byte_rate);
+  printf("  Bits Per Sample: %d\n", header.bits_per_sample);
+
+  printf("\n");
+  printf("Subchunk ");
+  displayArray(header.data_desc_header, 4);
+  printf("\n");
+
+  printf("  Data size: %d Bytes\n", header.data_size);
+  
+  return;
+}
+
+
+void displayArrayHeaderField(char *arr, int size, char *fieldName){
+  printf("%s: ", fieldName);
+  displayArray(arr, size);
+  printf("\n"); 
+}
+/**
+   displayArray takes in a char array and a size and prints that number of characters of the array to screen
+
+ */
+void displayArray(char *arr, int size){
+  int i;
+  
+  if(size <= sizeof(arr)){
+    for(i = 0; i < size; i++)
+      printf("%c", arr[i]);
+  }
+  
+  return;
 }

@@ -1,5 +1,8 @@
 /* wav _header.h defines a structure to hold the contents of a wav files header information */
 
+#define HEADER_SIZE 44
+#define NUM_HEADER_FIELDS 12
+
 struct WavHeader {
   //first 4 bytes of file, marks file as riff file. bytes 1-4
   unsigned char file_description_header[4];
@@ -39,3 +42,6 @@ struct WavHeader {
 
   //data follows header specified by data_size
 };
+
+//field sizes in bytes, allows for easy offsetting of array
+unsigned char field_sizes[] = { 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 2, 4, 4 };
