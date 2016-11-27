@@ -3,16 +3,9 @@
 #include <string.h>
 
 //User defined header files
+#include "time_d_conv.h"
+#include "typedefs.h"
 #include "wav_header.h"
-
-#define BYTE 1
-
-struct WavHeader getHeaderInfo(FILE *fp);
-void displayHeaderInfo(struct WavHeader header);
-void displayArrayHeaderField(char *arr, int size, char *fieldName);
-void displayArray(char *arr, int size);
-char* getWavData(FILE *fp, int data_size);
-int convolve(char *wav_data, int w_size, char *ir_data, int ir_size, char *output, int o_size);
 
 int main(int argc, char*argv[])
 {
@@ -27,7 +20,7 @@ int main(int argc, char*argv[])
     *ir_data,
     *output;
 
-  unsigned int out_size;
+  unsigned char out_size;
   
   system("clear");
   
@@ -113,9 +106,15 @@ char* getWavData(FILE *fp, int data_size){
  *
  */
 int convolve(char *wav_data, int w_size, char *ir_data, int ir_size, char *output, int o_size){
-  int success = 0;
+  int success = FALSE;
 
-  
+  if(o_size == (w_size + ir_size - 1)){
+    
+    success = TRUE;
+  }else{
+    printf("Convolve parameter output size is invalid. Should be input_size + impulse_response_size - 1.");
+    success = FALSE;
+  }
   
   return success;
 }

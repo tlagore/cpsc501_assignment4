@@ -1,5 +1,8 @@
 /* wav _header.h defines a structure to hold the contents of a wav files header information */
 
+#ifndef WAV_HEADER_H
+#define WAV_HEADER_H
+
 #define HEADER_SIZE 44
 #define NUM_HEADER_FIELDS 12
 
@@ -42,3 +45,6 @@ struct WavHeader {
 
   //data follows header specified by data_size
 };
+
+
+#endif

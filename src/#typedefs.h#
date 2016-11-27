@@ -1,0 +1,12 @@
+/* typedefs.h */
+
+#ifndef TYPEDEFS_H
+#define TYPEDEFS_H
+
+#define UINT8 unsigned char
+#define UINT16 unsigned int
+#define BYTE 1
+#define WORD 2
+#define DWOD 4
+
+#endif
