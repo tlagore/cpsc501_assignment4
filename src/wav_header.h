@@ -3,8 +3,9 @@
 #ifndef WAV_HEADER_H
 #define WAV_HEADER_H
 
-#define HEADER_SIZE 44
-#define NUM_HEADER_FIELDS 12
+#define MIN_HEADER_SIZE 44
+#define MIN_NUM_HEADER_FIELDS 12
+#define MIN_DATA_LENGTH 16
 
 struct WavHeader {
   //first 4 bytes of file, marks file as riff file. bytes 1-4
@@ -36,6 +37,9 @@ struct WavHeader {
 
   // next 2 bytes - digits of quantization
   unsigned short bits_per_sample;
+
+  // based on format_data_length, there may be extra parameters, 2 bytes per parameter
+  unsigned short *extra_params;
 
   // next 4 bytes (usually ascii "data")
   unsigned char data_desc_header[4];
