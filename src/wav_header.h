@@ -17,10 +17,10 @@ struct WavHeader {
   unsigned int format_data_length;
 
   //next 2 bytes
-  unsigned int format_type;
+  unsigned short format_type;
 
   //next 2 bytes, mono ($01), stereo ($02)
-  unsigned int num_channels;
+  unsigned short num_channels;
 
   //next 4 bytes samples per second, frequency of quantization  (usually 44100Hz, 22050Hz, ..)
   unsigned int sample_rate;
@@ -29,10 +29,10 @@ struct WavHeader {
   unsigned int byte_rate;
 
   // next 2 bytes  num_cahnnels * bits_per_sample / 8 - number of bytes in elementary quantization
-  unsigned int block_alignment;
+  unsigned short block_alignment;
 
   // next 2 bytes - digits of quantization
-  unsigned int bits_per_sample;
+  unsigned short bits_per_sample;
 
   // next 4 bytes (usually ascii "data")
   unsigned char data_desc_header[4];
@@ -42,6 +42,3 @@ struct WavHeader {
 
   //data follows header specified by data_size
 };
-
-//field sizes in bytes, allows for easy offsetting of array
-unsigned char field_sizes[] = { 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 2, 4, 4 };

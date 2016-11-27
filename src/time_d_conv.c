@@ -11,6 +11,8 @@ struct WavHeader getHeaderInfo(FILE *fp);
 void displayHeaderInfo(struct WavHeader header);
 void displayArrayHeaderField(char *arr, int size, char *fieldName);
 void displayArray(char *arr, int size);
+char* getWavData(FILE *fp, int data_size);
+int convolve(char *wav_data, int w_size, char *ir_data, int ir_size, char *output, int o_size);
 
 int main(int argc, char*argv[])
 {
@@ -21,8 +23,11 @@ int main(int argc, char*argv[])
   char *wav_file_str,
     *ir_file_str;
 
-  char *wav_data;
-  char *ir_data;
+  char *wav_data,
+    *ir_data,
+    *output;
+
+  unsigned int out_size;
   
   system("clear");
   
@@ -61,11 +66,58 @@ int main(int argc, char*argv[])
     printf("Impulse response file information:\n");
     displayHeaderInfo(ir_header);
 
-    wav_data = malloc(wav_header.data_size);
+    
+    wav_data = getWavData(wav_file, wav_header.data_size);
+    //done with file, have header and data
+    fclose(wav_file);
+    
+    ir_data = getWavData(ir_file, ir_header.data_size);
+    fclose(ir_file);
+    
+    out_size = wav_header.data_size + ir_header.data_size - 1;
+    output = malloc(out_size);
+    
+    if(wav_data == NULL){
+      printf("Error allocating memory for wav file data.\n");
+      printf("Exitting...\n");
+    }else if(ir_data == NULL){
+      printf("Error allocating memory for impulse response file data.\n");
+      printf("Exitting...\n");
+    }else if(output == NULL){
+      printf("Error allocating memory for output file data.\n");
+      printf("Exitting...\n");
+    }else{
+      convolve(wav_data, wav_header.data_size, ir_data, ir_header.data_size, output, out_size);
+    }
   }
-  
-  
+   
   return 0;
+}
+
+char* getWavData(FILE *fp, int data_size){
+  char *outputBuffer = (char*)malloc(data_size);
+
+  if(fp != NULL && outputBuffer != NULL){
+    //add size of header to file pointer so we are looking at data
+
+    //read data_size BYTES from fp into outputBuffer
+    fread(outputBuffer, BYTE, data_size, fp);
+  }
+
+  return outputBuffer;
+}
+
+/*
+ *  Function: convolve
+ *
+ *
+ */
+int convolve(char *wav_data, int w_size, char *ir_data, int ir_size, char *output, int o_size){
+  int success = 0;
+
+  
+  
+  return success;
 }
 
 struct WavHeader getHeaderInfo(FILE *fp){
