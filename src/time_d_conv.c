@@ -16,7 +16,7 @@ int main(int argc, char*argv[])
   char *wav_file_str,
     *ir_file_str;
 
-  char *wav_data,
+  float *wav_data,
     *ir_data,
     *output;
 
@@ -87,8 +87,8 @@ int main(int argc, char*argv[])
   return 0;
 }
 
-char* getWavData(FILE *fp, int data_size){
-  char *outputBuffer = (char*)malloc(data_size);
+float* getWavData(FILE *fp, int data_size){
+  float *outputBuffer = (float*)malloc(data_size);
 
   if(fp != NULL && outputBuffer != NULL){
     //add size of header to file pointer so we are looking at data
@@ -105,14 +105,26 @@ char* getWavData(FILE *fp, int data_size){
  *
  *
  */
-int convolve(char *wav_data, int w_size, char *ir_data, int ir_size, char *output, int o_size){
+int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *output, int o_size){
   int success = FALSE;
-
+  int wav_index, ir_index, out_index;
+  
   if(o_size == (w_size + ir_size - 1)){
+    for(out_index = 0; out_index < o_size; out_index++)
+      output[out_index] = 0;
+
+    for(wav_index = 0; wav_index < w_size; wav_index++){
+      for(ir_index = 0; ir_index < ir_size; ir_index++)
+	output[wav_index + ir_index] += wav_data[wav_index] * ir_data[ir_index];
+
+      //todo finish
+    }
     
     success = TRUE;
   }else{
-    printf("Convolve parameter output size is invalid. Should be input_size + impulse_response_size - 1.");
+    printf("Convolve parameter output size is invalid. Should be input_size + impulse_response_size - 1.\n");
+    printf("Expected %d but got %d\n", w_size + ir_size - 1, o_size);
+    printf("Aborting convolution.\n");
     success = FALSE;
   }
   
