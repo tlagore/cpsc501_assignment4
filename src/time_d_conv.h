@@ -9,7 +9,7 @@ struct WavHeader getHeaderInfo(FILE *fp);
 short* getWavData(FILE *fp, int data_size);
 int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *output, int o_size);
 float* shortArrToFloat(short* arr, unsigned int size, float divisor);
-unsigned int floatArrToShort(float* arr, short *output, unsigned int size, float multiplier);
+short* floatArrToShort(float* arr, unsigned int *out_bytes, unsigned int size, float multiplier);
 void saveOutput(char *out_file_str, float *data, unsigned int size, struct WavHeader wav_header);
 void cleanup(short *wav_data, float *fwav_data, short *ir_data, float *fir_data);
 

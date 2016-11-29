@@ -139,8 +139,9 @@ void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
   FILE *fp;
   short sBuffer;
   int iBuffer;
+  int i, remaining;
   
-  out_bytes = floatArrToShort(foutput, output, fout_bytes, SHORT_MULTIPLIER);
+  output = floatArrToShort(foutput, &out_bytes, fout_bytes, SHORT_MULTIPLIER);
   if(_Debug == TRUE)
     printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u",
 	   fout_bytes, out_bytes, fout_bytes / 2);
@@ -164,9 +165,21 @@ void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
   fwrite(&wav_header.byte_rate, sizeof(wav_header.byte_rate), BYTE, fp);
   fwrite(&wav_header.block_alignment, sizeof(wav_header.block_alignment), BYTE, fp);
   fwrite("data", 4, BYTE, fp);
-
   fwrite(output, out_bytes, BYTE, fp);
+  /*
+  printf("trying to write 1000 bytes of buffer\n");
+  fwrite(output, 1000, BYTE, fp);
+  */
+  /*
+  for(i = 0; i < out_bytes - 1000; i+=1000){
+    printf("Printed bytes %d-%d\n", i, i+1000);
+    fwrite(&output[i], 1000, BYTE, fp);
+  }
 
+  remaining = 1000 - (i - out_bytes);
+
+  fwrite(&output[out_bytes - remaining], remaining, BYTE, fp);
+  */
   fclose(fp);
 }
 
@@ -193,11 +206,12 @@ float* shortArrToFloat(short* arr, unsigned int size, float divisor){
   return toReturn;
 }
 
-unsigned int floatArrToShort(float* arr, short *output, unsigned int size, float multiplier){
+short* floatArrToShort(float* arr, unsigned int *out_bytes, unsigned int size, float multiplier){
   int i;
+  short *output;
   //ensure we are short aligned. Also need half the number of bytes for short
-  unsigned int requiredBytes = (size + size % BYTES_SHORT) / 2;
-  output = malloc(requiredBytes);
+  (*out_bytes) = (size + size % BYTES_SHORT) / 2;
+  output = malloc(*out_bytes);
   if(output != NULL){
     for (i = 0; i < (size / BYTES_FLOAT); i++){
       output[i] = (short)(arr[i] * multiplier);
@@ -207,12 +221,12 @@ unsigned int floatArrToShort(float* arr, short *output, unsigned int size, float
       free(arr);
     }
   }else{
-    requiredBytes = 0;
+    (*out_bytes) = 0;
     if(_Debug == TRUE)
       printf("Failed to allocate memory for short array in floatArrToShort\n");
   }
   
-  return requiredBytes;
+  return output;
 }
 /*
  * Function: getWavData
