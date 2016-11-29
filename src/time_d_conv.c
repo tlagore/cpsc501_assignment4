@@ -7,6 +7,10 @@
 #include "typedefs.h"
 #include "wav_header.h"
 
+#define gotoxy(x,y) printf("\033[%d;%dH", (x), (y))
+
+BOOL _Debug;
+
 int main(int argc, char*argv[])
 {
   struct WavHeader wav_header;
@@ -14,18 +18,21 @@ int main(int argc, char*argv[])
   FILE *wav_file,
     *ir_file;
   char *wav_file_str,
-    *ir_file_str;
+    *ir_file_str,
+    *out_file_str;
 
   short *wav_data,
-    *ir_data,
-    *output;
+    *ir_data;
 
   float *fwav_data,
     *fir_data,
     *foutput;
   
-  unsigned char out_size;
-
+  int wav_els,
+    ir_els,
+    out_els,
+    fout_bytes;
+  
   system("clear");
   
   printf("***********************************\n");
@@ -34,15 +41,28 @@ int main(int argc, char*argv[])
   printf(" *\n");
   printf("***********************************\n\n");
   
-  if(argc != 3){
-    printf("Invalid number of arguments. Proper usage is %s %s %s\n", argv[0], "/dir/to/filename1.wav", "/dir/to/impulse_response.wav");
+  if(argc != 5){
+    printf("Invalid number of arguments. Proper usage is %s %s %s %s %s\n",
+	   argv[0],
+	   "/dir/to/filename1.wav", "/dir/to/impulse_response.wav",
+	   "out_filename.wav",
+	   "[debug (true or false)]");
     return -1;
   }
 
   wav_file_str = argv[1];
   ir_file_str = argv[2];
+  out_file_str = argv[3];
+  
+  if(strcmp(argv[4], "true") == 0)
+    _Debug = TRUE;
+  else
+    _Debug = FALSE;
 
-  printf("Running convolution processing with parameters:\nwav file: %s\nimpulse response file: %s\n\n", wav_file_str, ir_file_str);
+  printf("Running convolution processing with parameters:\nwav file: %s\nimpulse response file: %s\n\n",
+	 wav_file_str,
+	 ir_file_str);
+  printf("Debug: %s\n", (_Debug == TRUE ? "true" : "false"));
 
   wav_file = fopen(wav_file_str, "r");
   ir_file = fopen(ir_file_str, "r");
@@ -56,42 +76,32 @@ int main(int argc, char*argv[])
     wav_header = getHeaderInfo(wav_file);
     ir_header = getHeaderInfo(ir_file);
 
-    printf("Wav file information:\n");
-    displayHeaderInfo(wav_header);
-    printf("\n");
-    
-    printf("Impulse response file information:\n");
-    displayHeaderInfo(ir_header);
-
-    //wav_data = getWavData(wav_file, wav_header.data_size);
-    //printf("done getWavData\n");
-    //displayIntArrData(wav_data, 10);
+    wav_data = getWavData(wav_file, wav_header.data_size);
     //done with file, have header and data
-    //fclose(wav_file);
-    //printf("done close wav_file\n");
-    
-    //fwav_data = intArrToFloat(wav_data, wav_header.data_size, 32768, TRUE);    
-    //displayFloatArrData(fwav_data, 10);
+    fclose(wav_file);
 
-    //printf("done with intArrToFloat\n");
-    
     ir_data = getWavData(ir_file, ir_header.data_size);
-    printf("got ir data\n");
-
-    if(ir_data != NULL)
-      displayShortArrData(ir_data, 10);
-    else
-      printf("ir_data was null...\n");
-
-    printf("after display ir_data\n");
     fclose(ir_file);
-    fir_data = shortArrToFloat(ir_data, ir_header.data_size, 32768, TRUE);
-    displayFloatArrData(fir_data, 10);
-    
-    out_size = wav_header.data_size + ir_header.data_size - 1;
-    output = malloc(out_size);
 
-    printf("out_size: %d\n", out_size);
+    printf("Wav samples read for input file and ir file.\n");
+
+    //convert to float, divide by divisor 32768
+    fwav_data = shortArrToFloat(wav_data, wav_header.data_size, SHORT_DIVISOR);
+    fir_data = shortArrToFloat(ir_data, ir_header.data_size, SHORT_DIVISOR);
+    
+    if(_Debug == TRUE)
+      displayTestInformation(wav_header, ir_header, wav_data, ir_data,
+			     fwav_data, fir_data);
+    
+    wav_els = wav_header.data_size / BYTES_FLOAT;
+    ir_els = ir_header.data_size / BYTES_FLOAT;
+    out_els = wav_els + ir_els - 1;
+   
+    fout_bytes = out_els * BYTES_FLOAT;
+
+    foutput = malloc(fout_bytes);
+
+    printf("Allocating %d bytes for output samples.\n", fout_bytes);
     
     if(wav_data == NULL){
       printf("Error allocating memory for wav file data.\n");
@@ -99,15 +109,65 @@ int main(int argc, char*argv[])
     }else if(ir_data == NULL){
       printf("Error allocating memory for impulse response file data.\n");
       printf("Exitting...\n");
-    }else if(output == NULL){
+    }else if(foutput == NULL){
       printf("Error allocating memory for output file data.\n");
       printf("Exitting...\n");
     }else{
-      //convolve(fwav_data, wav_header.data_size, fir_data, ir_header.data_size, foutput, out_size);
+      printf("Beginning convolution...\n");
+      convolve(fwav_data,
+	       wav_els,
+	       fir_data,
+	       ir_els,
+	       foutput,
+	       out_els);
+
+      saveOutput(out_file_str, foutput, fout_bytes, wav_header);
+      //saveOutput(foutput, out_els);
     }
   }
+
+  printf("before cleanup\n");
+  cleanup(wav_data, fwav_data, ir_data, fir_data);
    
   return 0;
+}
+
+void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
+		struct WavHeader wav_header){
+  unsigned int out_bytes;
+  short *output;
+  FILE *fp;
+  short sBuffer;
+  int iBuffer;
+  
+  out_bytes = floatArrToShort(foutput, output, fout_bytes, SHORT_MULTIPLIER);
+  if(_Debug == TRUE)
+    printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u",
+	   fout_bytes, out_bytes, fout_bytes / 2);
+  
+  fp = fopen(out_file_str ,"w+");
+  
+  fwrite("RIFF", 4, BYTE, fp);
+
+  iBuffer = out_bytes - 36;
+  fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  fwrite("WAVE", 4, BYTE, fp);
+  fwrite("fmt\0", 4, BYTE, fp);
+
+  //data chunk is 16 bytes long
+  iBuffer = 16;
+  fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  //same format as header
+  fwrite(&wav_header.format_type, sizeof(wav_header.format_type), BYTE, fp);
+  fwrite(&wav_header.num_channels, sizeof(wav_header.num_channels), BYTE, fp);
+  fwrite(&wav_header.sample_rate, sizeof(wav_header.sample_rate), BYTE, fp);
+  fwrite(&wav_header.byte_rate, sizeof(wav_header.byte_rate), BYTE, fp);
+  fwrite(&wav_header.block_alignment, sizeof(wav_header.block_alignment), BYTE, fp);
+  fwrite("data", 4, BYTE, fp);
+
+  fwrite(output, out_bytes, BYTE, fp);
+
+  fclose(fp);
 }
 
 /*
@@ -115,38 +175,60 @@ int main(int argc, char*argv[])
  *
  * Description: takes in a 
  */
-float* shortArrToFloat(short* arr, unsigned int size, float divisor, int doFree){
-  //must allocated 2x the amount of space as floats are 4 bytes long
-  float *toReturn = malloc(size * 2);
+float* shortArrToFloat(short* arr, unsigned int size, float divisor){
+  //short has 2 bytes, float has 4, must allocate 2x the space
+  //Also ensure that float array is a multiple of 4
+  float *toReturn = malloc((size + (size % BYTES_FLOAT)) * 2);
   int i;
 
-  //size is in bytes, int is 2 bytes long - must divide by 2
-  for(i = 0; i < (size / 4); i++){
-    toReturn[i] = (float)(arr[i]) / divisor;
+  //size is in bytes, short is 2 bytes long - must divide by 2
+  for(i = 0; i < (size / BYTES_SHORT); i++){
+    toReturn[i] = (float)(arr[i] / divisor);
   }
 
-  printf("arr copied\n");
-
-  if(doFree == TRUE){
+  if(_Debug == FALSE){
     free(arr);
   }
 
   return toReturn;
 }
 
+unsigned int floatArrToShort(float* arr, short *output, unsigned int size, float multiplier){
+  int i;
+  //ensure we are short aligned. Also need half the number of bytes for short
+  unsigned int requiredBytes = (size + size % BYTES_SHORT) / 2;
+  output = malloc(requiredBytes);
+  if(output != NULL){
+    for (i = 0; i < (size / BYTES_FLOAT); i++){
+      output[i] = (short)(arr[i] * multiplier);
+    }
+
+    if(_Debug == FALSE){
+      free(arr);
+    }
+  }else{
+    requiredBytes = 0;
+    if(_Debug == TRUE)
+      printf("Failed to allocate memory for short array in floatArrToShort\n");
+  }
+  
+  return requiredBytes;
+}
 /*
  * Function: getWavData
  * 
  * Description: 
  */
-
 short* getWavData(FILE *fp, int data_size){
   short *outputBuffer = (short*)malloc(data_size);
-
+  int i;
   if(fp != NULL && outputBuffer != NULL){
     //read data_size BYTES from fp into outputBuffer
-    fread(outputBuffer, BYTE, data_size, fp);
+    i = fread(outputBuffer, BYTE, data_size, fp);
   }
+  
+  if(_Debug == TRUE)
+    printf("getWavData: %d bytes read. Expected %d bytes.\n", i, data_size);
 
   return outputBuffer;
 }
@@ -160,16 +242,31 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
   int success = FALSE;
   int wav_index, ir_index, out_index;
   
+  long finished = (long)w_size;
+  double curPercent = 0;
+
+  printf("w_size: %d, ir_size: %d, o_size: %d, finished_size: %llu\n", w_size, ir_size, o_size, finished);
+
+  //save cursor position for progress
+  printf("\033[s");
+  fflush(stdout);
+  
   if(o_size == (w_size + ir_size - 1)){
     for(out_index = 0; out_index < o_size; out_index++)
       output[out_index] = 0;
-
+    
     for(wav_index = 0; wav_index < w_size; wav_index++){
-      for(ir_index = 0; ir_index < ir_size; ir_index++)
+      for(ir_index = 0; ir_index < ir_size; ir_index++){
 	output[wav_index + ir_index] += wav_data[wav_index] * ir_data[ir_index];
+      }
 
-      //todo finish
+      curPercent = (double)((double)wav_index / (double)finished) * 100;
+      printf("%.4f%%", curPercent);
+      printf("\033[u");
+      fflush(stdout);
     }
+
+    printf("\n");
     
     success = TRUE;
   }else{
@@ -207,7 +304,6 @@ struct WavHeader getHeaderInfo(FILE *fp){
 
     //MIN_DATA_LENGTH specifies the minimum chunk size of the data section of the wav header
     //if header.format_data_length is larger then this, there will be extra parameters
-
     if(header.format_data_length - MIN_DATA_LENGTH > 0){
       header.extra_params = malloc(header.format_data_length- MIN_DATA_LENGTH);
       fread(header.extra_params, (header.format_data_length - MIN_DATA_LENGTH), BYTE, fp);
@@ -220,6 +316,27 @@ struct WavHeader getHeaderInfo(FILE *fp){
   
   return header;
 }
+
+
+void cleanup(short *wav_data, float *fwav_data, short *ir_data, float *fir_data){
+  //if we are not in debug mode, we freed wav_data and ir_data as soon as we were done with them
+  //if we are in debug mode, we held off on freeing them to generate debug output
+  if(!_Debug){
+    free(wav_data);
+    free(ir_data);
+  }
+  
+  free(fwav_data);
+  free(fir_data);
+}
+
+
+
+/****************************************************************************************
+
+                                    TEST FUNCTIONS
+
+ ****************************************************************************************/
 
 
 
@@ -290,27 +407,90 @@ void displayArray(char *arr, int size){
 /*
  *
  */
-void displayShortArrData(short *arr, int numEls){
+void displayShortArrData(short *arr, int startEl, int numEls){
   int i;
-
-  printf("before loop\n");
-  for(i = 0; i < numEls - 1; i++)
-    printf("%d, ", arr[i]);
-
-  printf("after loop\n");
-  printf("%d\n", arr[i]);
+  if (arr != NULL){
+    printf("displayShortArray - Elements %d to %d:\n{ ", startEl, startEl + numEls);
+    
+    for(i = startEl; i < (startEl + numEls - 1); i++)
+      printf("%d, ", arr[i]);
+    
+    printf("%d }\n", arr[i]);
+  }else
+    printf("Call to test display short array elements function failed. Passed in array was null.\n");
 }
 
 /*
  *
  */
-void displayFloatArrData(float *arr, int numEls){
+void displayFloatArrData(float *arr, int startEl, int numEls){
   int i;
 
-  printf("inside display float\n");
-  
-  for(i = 0; i < numEls - 1; i++)
-    printf("%f, ", arr[i]);
+  if (arr != NULL){
+    printf("displayFloatArray - Elements %d to %d:\n{ ", startEl, startEl + numEls);
 
-  printf("%f\n", arr[i]);
+    for(i = startEl; i < (startEl + numEls - 1); i++)
+      printf("%f, ", arr[i]);
+    
+    printf("%f }\n", arr[i]);
+  }else
+    printf("Call to test display float array elements function failed. Passed in array was null.\n");
+}
+
+/*
+ *
+ */
+
+short getMaxElement(short *arr, int numEls){
+  int i;
+  short max = -32768;
+  for(i = 0; i < numEls; i++)
+    if(arr[i] > max)
+      max = arr[i];
+
+  return max;
+}
+
+short getMinElement(short *arr, int numEls){
+  int i;
+  short min = 32767;
+  for(i = 0; i < numEls; i++)
+    if(arr[i] < min)
+      min = arr[i];
+  
+  return min;
+}
+
+
+void displayTestInformation(struct WavHeader wav_header, struct WavHeader ir_header,
+			    short *wav_data, short *ir_data,
+			    float *fwav_data, float *fir_data){
+    printf("Input wav file information:\n");
+    displayHeaderInfo(wav_header);
+    printf("\n");
+    
+    printf("Impulse response wav file information:\n");
+    displayHeaderInfo(ir_header);
+    
+    printf("Input wav file sample data display\n");
+    //divide byte size by 2 to get to short index, by 2 again to get to middle of array
+    //print 20 elements
+    displayShortArrData(wav_data, wav_header.data_size / 4, 15);
+    printf("Max element in wav samples: %d\n", getMaxElement(wav_data, wav_header.data_size / 2));
+    printf("Min element in wav sampels: %d\n", getMinElement(wav_data, wav_header.data_size / 2));
+    printf("\n");
+
+    printf("Input wav file sample data converted to float\n");
+    displayFloatArrData(fwav_data, wav_header.data_size / 4, 15);
+    printf("\n");
+    
+    printf("IR wav file sample data display\n");
+    displayShortArrData(ir_data, ir_header.data_size / 4, 15);
+    printf("Max element in ir samples: %d\n", getMaxElement(ir_data, ir_header.data_size / 2));
+    printf("Min element in ir samples: %d\n", getMinElement(ir_data, ir_header.data_size / 2));
+    printf("\n");
+      
+    printf("IR wav file sample data converted to float\n");
+    displayFloatArrData(fir_data, ir_header.data_size / 4, 15);
+    printf("\n");    
 }
