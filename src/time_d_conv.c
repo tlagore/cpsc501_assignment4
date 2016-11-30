@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 //User defined header files
 #include "time_d_conv.h"
 #include "typedefs.h"
 #include "wav_header.h"
-
-#define gotoxy(x,y) printf("\033[%d;%dH", (x), (y))
 
 BOOL _Debug;
 
@@ -59,6 +58,11 @@ int main(int argc, char*argv[])
   else
     _Debug = FALSE;
 
+  if(access(out_file_str, F_OK) != -1){
+    printf("File exists.\n");
+    //TODO handle overwrite
+  }
+  
   printf("Running convolution processing with parameters:\nwav file: %s\nimpulse response file: %s\n\n",
 	 wav_file_str,
 	 ir_file_str);
@@ -93,15 +97,16 @@ int main(int argc, char*argv[])
       displayTestInformation(wav_header, ir_header, wav_data, ir_data,
 			     fwav_data, fir_data);
     
-    wav_els = wav_header.data_size / BYTES_FLOAT;
-    ir_els = ir_header.data_size / BYTES_FLOAT;
+    wav_els = wav_header.data_size / wav_header.block_alignment;
+    ir_els = ir_header.data_size / ir_header.block_alignment;
     out_els = wav_els + ir_els - 1;
    
     fout_bytes = out_els * BYTES_FLOAT;
 
     foutput = malloc(fout_bytes);
 
-    printf("Allocating %d bytes for output samples.\n", fout_bytes);
+    if(_Debug)
+      printf("Allocating %d bytes for float output samples.\n", fout_bytes);
     
     if(wav_data == NULL){
       printf("Error allocating memory for wav file data.\n");
@@ -126,7 +131,8 @@ int main(int argc, char*argv[])
     }
   }
 
-  printf("before cleanup\n");
+  if(_Debug)
+    printf("Cleaning up data, freeing memory.");
   cleanup(wav_data, fwav_data, ir_data, fir_data);
    
   return 0;
@@ -137,51 +143,74 @@ void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
   unsigned int out_bytes;
   short *output;
   FILE *fp;
-  short sBuffer;
   int iBuffer;
-  int i, remaining;
-  
+  int i;
+  float max;
+
+  max = getMaxElementFloat(foutput, fout_bytes / 4);
+  if (max > 1){
+    if(_Debug)
+      printf("Max element in output array before conversion was %f, normalizing..\n", max);
+    
+    normalizeArray(foutput, fout_bytes / 4, max);
+  }
+
   output = floatArrToShort(foutput, &out_bytes, fout_bytes, SHORT_MULTIPLIER);
   if(_Debug == TRUE)
-    printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u",
+    printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u\n"
 	   fout_bytes, out_bytes, fout_bytes / 2);
   
   fp = fopen(out_file_str ,"w+");
   
   fwrite("RIFF", 4, BYTE, fp);
-
   iBuffer = out_bytes - 36;
-  fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  write_little_endian(iBuffer, BYTES_INT, fp);
+  //fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  
   fwrite("WAVE", 4, BYTE, fp);
-  fwrite("fmt\0", 4, BYTE, fp);
+  fwrite("fmt ", 4, BYTE, fp);
 
   //data chunk is 16 bytes long
   iBuffer = 16;
   fwrite(&iBuffer, BYTES_INT, BYTE, fp);
   //same format as header
-  fwrite(&wav_header.format_type, sizeof(wav_header.format_type), BYTE, fp);
-  fwrite(&wav_header.num_channels, sizeof(wav_header.num_channels), BYTE, fp);
-  fwrite(&wav_header.sample_rate, sizeof(wav_header.sample_rate), BYTE, fp);
-  fwrite(&wav_header.byte_rate, sizeof(wav_header.byte_rate), BYTE, fp);
-  fwrite(&wav_header.block_alignment, sizeof(wav_header.block_alignment), BYTE, fp);
+  write_little_endian(wav_header.format_type, sizeof(wav_header.format_type), fp);
+  write_little_endian(wav_header.num_channels, sizeof(wav_header.num_channels), fp);
+  write_little_endian(wav_header.sample_rate, sizeof(wav_header.sample_rate), fp);
+  write_little_endian(wav_header.byte_rate, sizeof(wav_header.byte_rate), fp);
+  write_little_endian(wav_header.block_alignment, sizeof(wav_header.block_alignment), fp);
+  write_little_endian(wav_header.bits_per_sample, sizeof(wav_header.bits_per_sample), fp);
+     
   fwrite("data", 4, BYTE, fp);
-  fwrite(output, out_bytes, BYTE, fp);
-  /*
-  printf("trying to write 1000 bytes of buffer\n");
-  fwrite(output, 1000, BYTE, fp);
-  */
-  /*
-  for(i = 0; i < out_bytes - 1000; i+=1000){
-    printf("Printed bytes %d-%d\n", i, i+1000);
-    fwrite(&output[i], 1000, BYTE, fp);
-  }
+  write_little_endian(out_bytes, BYTES_INT, fp);
 
-  remaining = 1000 - (i - out_bytes);
+  if(_Debug == TRUE)
+    printf("Header data printed to %s\n", out_file_str);
 
-  fwrite(&output[out_bytes - remaining], remaining, BYTE, fp);
-  */
+  printf("outbytes before write %u\n", out_bytes);
+  
+  for(i = 0; i < out_bytes / 2; i++)
+    write_little_endian((unsigned int)(output[i]), sizeof(wav_header.block_alignment), fp);
+
+  if(_Debug == TRUE)
+    printf("Convoluted sample data written to file.\n");
+
+  free(output);
   fclose(fp);
 }
+
+void write_little_endian(unsigned int output, int bytes, FILE *fp)
+{
+    unsigned ch;
+    while(bytes > 0)
+    {
+        ch = output & 0xff;
+        fwrite(&ch, 1, 1, fp);
+        bytes--;
+	output >>= 8;
+    }
+}
+
 
 /*
  * Function: intArrToFloat
@@ -275,12 +304,12 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
       }
 
       curPercent = (double)((double)wav_index / (double)finished) * 100;
-      printf("%.4f%%", curPercent);
+      printf(" %.2f%%", curPercent);
       printf("\033[u");
       fflush(stdout);
     }
-
-    printf("\n");
+    
+    printf("100.00%%\n");
     
     success = TRUE;
   }else{
@@ -335,7 +364,7 @@ struct WavHeader getHeaderInfo(FILE *fp){
 void cleanup(short *wav_data, float *fwav_data, short *ir_data, float *fir_data){
   //if we are not in debug mode, we freed wav_data and ir_data as soon as we were done with them
   //if we are in debug mode, we held off on freeing them to generate debug output
-  if(!_Debug){
+  if(_Debug){
     free(wav_data);
     free(ir_data);
   }
@@ -344,6 +373,8 @@ void cleanup(short *wav_data, float *fwav_data, short *ir_data, float *fir_data)
   free(fir_data);
 }
 
+
+ 
 
 
 /****************************************************************************************
@@ -475,6 +506,21 @@ short getMinElement(short *arr, int numEls){
   return min;
 }
 
+float getMaxElementFloat(float *arr, int numEls){
+  int i;
+  float max = -1000000;
+  for(i = 0; i < numEls; i++)
+    if(abs(arr[i]) > max)
+      max = arr[i];
+  
+  return max;
+}
+
+void normalizeArray(float *arr, int numEls, float max){
+  int i;
+  for(i = 0; i < numEls; i++)
+    arr[i] /= max;
+}
 
 void displayTestInformation(struct WavHeader wav_header, struct WavHeader ir_header,
 			    short *wav_data, short *ir_data,
