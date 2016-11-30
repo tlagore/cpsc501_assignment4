@@ -157,7 +157,7 @@ void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
 
   output = floatArrToShort(foutput, &out_bytes, fout_bytes, SHORT_MULTIPLIER);
   if(_Debug == TRUE)
-    printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u\n"
+    printf("Float output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u\n",
 	   fout_bytes, out_bytes, fout_bytes / 2);
   
   fp = fopen(out_file_str ,"w+");
