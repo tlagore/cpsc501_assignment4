@@ -1,7 +1,7 @@
-/* time_d_conv.h */
+/* convolve.h */
 
-#ifndef TIME_D_CONV_H
-#define TIME_D_CONV_H
+#ifndef CONVOLVE_H
+#define CONVOLVE_H
 
 #include "typedefs.h"
 

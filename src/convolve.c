@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 //User defined header files
-#include "time_d_conv.h"
+#include "convolve.h"
 #include "typedefs.h"
 #include "wav_header.h"
 
@@ -41,26 +41,27 @@ int main(int argc, char*argv[])
   printf("***********************************\n\n");
   
   if(argc != 5){
-    printf("Invalid number of arguments. Proper usage is %s %s %s %s %s\n",
-	   argv[0],
-	   "/dir/to/filename1.wav", "/dir/to/impulse_response.wav",
-	   "out_filename.wav",
-	   "[debug (true or false)]");
-    return -1;
+    printf("Invalid number of arguments. Proper usage is %s inFile irFile outFile debug\n", argv[0]);
+    printf("where\n");
+    printf("\tinFile = /dir/to/filename1.wav");
+    printf("\tirFile = /dir/to/impulse_response.wav");
+    printf("\toutFile = out_filename.wav");
+    printf("\tdebug = [t]rue or [f]alse (defaults to false if malformed)");
+    return -1; 
   }
 
   wav_file_str = argv[1];
   ir_file_str = argv[2];
   out_file_str = argv[3];
   
-  if(strcmp(argv[4], "true") == 0)
+  if(strcmp(argv[4], "true") == 0 || strcmp(argv[4], "t") == 0)
     _Debug = TRUE;
   else
     _Debug = FALSE;
 
+  
   if(access(out_file_str, F_OK) != -1){
-    printf("File exists.\n");
-    //TODO handle overwrite
+    //file exists, if this detection is required later, insert handling code here
   }
   
   printf("Running convolution processing with parameters:\nwav file: %s\nimpulse response file: %s\n\n",
@@ -137,6 +138,7 @@ int main(int argc, char*argv[])
    
   return 0;
 }
+
 
 void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
 		struct WavHeader wav_header){
@@ -235,6 +237,10 @@ float* shortArrToFloat(short* arr, unsigned int size, float divisor){
   return toReturn;
 }
 
+/*
+  
+
+ */
 short* floatArrToShort(float* arr, unsigned int *out_bytes, unsigned int size, float multiplier){
   int i;
   short *output;
@@ -355,7 +361,6 @@ struct WavHeader getHeaderInfo(FILE *fp){
     fread(&header.data_desc_header, sizeof(header.data_desc_header), BYTE, fp);
     fread(&header.data_size, sizeof(header.data_size), BYTE, fp);
   }
-
   
   return header;
 }
