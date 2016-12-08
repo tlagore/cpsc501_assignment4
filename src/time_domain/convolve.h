@@ -3,7 +3,7 @@
 #ifndef CONVOLVE_H
 #define CONVOLVE_H
 
-#include "typedefs.h"
+#include "../shared/typedefs.h"
 
 struct WavHeader getHeaderInfo(FILE *fp);
 short* getWavData(FILE *fp, int data_size);

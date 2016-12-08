@@ -6,6 +6,7 @@
 #define BYTE 1
 #define BYTES_SHORT 2
 #define BYTES_FLOAT 4
+#define BYTES_DOUBLE 8
 #define BYTES_INT 4
 #define TRUE 1
 #define FALSE 0

@@ -5,8 +5,8 @@
 
 //User defined header files
 #include "convolve.h"
-#include "typedefs.h"
-#include "wav_header.h"
+#include "../shared/typedefs.h"
+#include "../shared/wav_header.h"
 
 BOOL _Debug;
 
