@@ -14,11 +14,8 @@ FREQ_TARGET = $(BDIR)/$(TARGET)_freq
 TIME_TARGET = $(BDIR)/$(TARGET)_time
 
 all:
-	@echo 'make all undefined. Please use:'
-	@echo -e '\nmake time_d - compiles dependencies for time domain convolution.'
-	@echo 'make gprof_time_d - time domain convolution with -pg specified to allow for gprof profiling'
-	@echo -e 'make freq_d - compiles dependencies for frequency domain convolution.'
-	@echo 'make gprof_freq_d - frequency domain convolution with -pg specified to allow for gprof profiling'
+	make time_d
+	make freq_d
 
 time_d:	$(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
 	$(CC) -o $(TIME_TARGET) $(TIME_DIR)/$(TARGET).c

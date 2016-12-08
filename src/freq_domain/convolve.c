@@ -126,12 +126,10 @@ int main(int argc, char*argv[])
       printf("Exitting...\n");
     }else{
       printf("Beginning convolution...\n");
-      /*convolve(fwav_data,
+      convolve(fwav_data,
 	       wav_els,
 	       fir_data,
-	       ir_els,
-	       foutput,
-	       out_els);*/
+	       ir_els);
       //saveOutput(out_file_str, foutput, fout_bytes, wav_header);
       //saveOutput(foutput, out_els);
     }
@@ -237,10 +235,56 @@ short* getWavData(FILE *fp, int data_size){
 BOOL convolve(double *wav_data, int w_size, double *ir_data, int ir_size)
 {
   BOOL success = FALSE;
+  int i, j, ir_out_size, wav_out_size;
+  unsigned int segment_size, w_size_fft, ir_size_fft;
+  double *wav_output, *ir_output;
+  
+  //do 1024 bytes at a time
+  segment_size = 1024;
+
+  //make sure new output size is a multiple of 1024
+  w_size_fft = w_size + (w_size % segment_size);
+  ir_size_fft = w_size + (ir_size % segment_size);
+
+  //require 2x the size for real and imaginary and allocate #bytes in double for each element
+  wav_out_size = (w_size_fft * BYTES_DOUBLE) << 1;
+  ir_out_size = (ir_size_fft * BYTES_DOUBLE) << 1;
+
+  //allocate
+  wav_output = (double*)malloc(wav_out_size);
+  ir_output = (double*)malloc(ir_out_size);
+
+  //spread the data out to make room for imaginary numbers
+  preprocessData(wav_output, wav_data, w_size);
+  preprocessData(ir_output, ir_data, ir_size);
+
+  if(_Debug){
+    printf("Array post processing sample: Data should be spread data[1], 0, data[2], 0...\n");
+    displayDoubleArrData(wav_data, w_size / 4, 6);
+    displayDoubleArrData(wav_output, w_size / 2, 12);
+  }
+  
+  for(i = 0; i < w_size_fft; i+=segment_size){
+    fft((wav_output + i) - 1, segment_size >> 1, 1);
+  }
+
+  for(i = 0; i < ir_size_fft; i+= segment_size){
+    fft((wav_output + i) - 1, segment_size >> 1, 1);
+  }
 
   
   
   return success;
+}
+
+void preprocessData(double *dataOut, double *dataIn, int numEls){
+  int i;
+  double temp;
+  
+  for(i = 0; i < numEls; i+=2){
+    dataOut[i] = dataIn[i/2];
+    dataOut[i+1] = 0.0;
+  }
 }
 
 /*
@@ -308,7 +352,7 @@ void fft(double data[], int nn, int isign)
   }
 }
 
-z/*
+/*
  * Function: getHeaderInfo
  *
  * Description: getHeaderInfo takes in a file (assumed to be a wav file) and reads

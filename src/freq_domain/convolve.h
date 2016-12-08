@@ -12,7 +12,7 @@ void write_little_endian(unsigned int out, int bytes, FILE *fp);
 void saveOutput(char *out_file_str, double *data, unsigned int size, struct WavHeader wav_header);
 void cleanup(short *wav_data, double *fwav_data, short *ir_data, double *fir_data);
 void fft(double data[], int nn, int isign);
-
+void preprocessData(double *dataOut, double *dataIn, int numEls);
 
 /* test function definitions */
 void displayTestInformation(struct WavHeader wav_header, struct WavHeader ir_header,
