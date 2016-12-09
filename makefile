@@ -11,7 +11,9 @@ BDIR=./bin
 LINK=-lm
 
 FREQ_TARGET = $(BDIR)/$(TARGET)_freq
+FREQ_TARGET_GPROF = $(BDIR)/$(TARGET)_freq_gp
 TIME_TARGET = $(BDIR)/$(TARGET)_time
+TIME_TARGET_GPROF = $(BDIR)/$(TARGET)_time_gp
 
 all:
 	make time_d
@@ -21,10 +23,10 @@ time_d:	$(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
 	$(CC) -o $(TIME_TARGET) $(TIME_DIR)/$(TARGET).c
 	$(call printUsage,time)
 
-gprof_time_d: $(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
-	$(CC) -pg -o $(TIME_TARGET) $(TIME_DIR)/$(TARGET).c
-	@echo -e '\nCompiled with -pg, use gprof $(BDIR)/$(TARGET)_time'
-	$(call printUsage,time)
+time_d_gprof: $(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
+	$(CC) -pg -o $(TIME_TARGET_GPROF) $(TIME_DIR)/$(TARGET).c
+	@echo -e '\nCompiled with -pg, use gprof $(TIME_TARGET_GPROF)'
+	$(call printUsage,time_gp)
 
 convolve.o: $(FREQ_DIR)/convolve.c $(FREQ_DIR)/convolve.h $(FREQ_DIR)/utils.h
 	$(CC) -c $(FREQ_DIR)/convolve.c
@@ -35,10 +37,19 @@ utils.o: $(FREQ_DIR)/utils.c $(FREQ_DIR)/utils.h
 freq_d: $(FREQ_OBJS)
 	$(CC) -o $(FREQ_TARGET) $(FREQ_OBJS) $(LINK)
 	rm -f *.o
+	$(call printUsage,freq)
+
+freq_d_gprof: $(FREQ_OBJS)
+	$(CC) -pg -o $(FREQ_TARGET_GPROF) $(FREQ_OBS) $(LINK)
+	rm -f *.o
+	@echo -e '\nCompiled with -pg, use gprof $(FREQ_TARGET_GPROF)'
+	$(call printUsage,freq_gp)
 
 clean:
-	$(RM) $(BDIR)/$(TARGET)_time
-	$(RM) $(BDIR)/$(TARGET)_freq
+	$(RM) $(FREQ_TARGET)
+	$(RM) $(TIME_TARGET)
+	$(RM) $(FREQ_TARGET_GPROF)
+	$(RM) $(TIME_TARGET_GPROF)
 
 define printUsage
 	@echo -e '$(BDIR)/$(TARGET)_$1 inFile.wav irFile.wav outFile.wav debug'

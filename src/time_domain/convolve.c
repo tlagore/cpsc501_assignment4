@@ -10,6 +10,20 @@
 
 BOOL _Debug;
 
+/*
+  convolve.c
+  
+  convolve takes in a nuber of arguments and produces a convolved wav_file
+  convolve calculates the convolved signal in the time domain and therefore
+  takes a very long time to run.
+
+  The arguments are:
+  argv[0] - program name
+  argv[1] - input wav file for convolution
+  argv[2] - input impulse response file for convolution
+  argv[3] - name of desired output.wav file (existing files overwritten)
+  argv[4] - debug (t)rue or (f)alse. Debug defaults to false on bad input
+ */
 int main(int argc, char*argv[])
 {
   struct WavHeader wav_header;
@@ -139,7 +153,21 @@ int main(int argc, char*argv[])
   return 0;
 }
 
+/*
+  saveOutput
 
+  Description: saveOutput takes in a filename, a float array assumed to 
+  contain the data portion of a wav file, the number of bytes in this
+  data, and a WavHeader struct meant to describe the wav file being written.
+
+  saveOutput first normalizes the array to ensure that no element exceeeds
+  + or - 1.0. Then it converts the data back to a 16 bit integer array.
+
+  It creates a new file with name out_file_str and writes the header
+  content of the wav file in proper order, followed by the data.
+
+  the resulting file should be a playable wav file if no data was corrupted.
+ */
 void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
 		struct WavHeader wav_header){
   unsigned int out_bytes;
@@ -201,6 +229,11 @@ void saveOutput(char *out_file_str, float *foutput, unsigned int fout_bytes,
   fclose(fp);
 }
 
+/*
+  write_little_endian takes in an unsigned integer that needs to be 
+  written as little endian and writes the bytes of the output to
+  the little endian specification.
+ */
 void write_little_endian(unsigned int output, int bytes, FILE *fp)
 {
     unsigned ch;
@@ -216,8 +249,10 @@ void write_little_endian(unsigned int output, int bytes, FILE *fp)
 
 /*
  * Function: intArrToFloat
- *
- * Description: takes in a 
+ takes in a short array, a size, and a divisor, and returns a float 
+ array with the elements of the short array divided by the divisor.
+ 
+ To get the same elements, but in float form - set divisor = 1
  */
 float* shortArrToFloat(short* arr, unsigned int size, float divisor){
   //short has 2 bytes, float has 4, must allocate 2x the space
@@ -263,10 +298,13 @@ short* floatArrToShort(float* arr, unsigned int *out_bytes, unsigned int size, f
   
   return output;
 }
+
 /*
  * Function: getWavData
  * 
- * Description: 
+ * Description: getWavData reads in the wav data portion of the wav file.
+ * getWavData assumes that the fp passed in was used to read the header
+ * file for the wav file up to the point where the wav data is located.
  */
 short* getWavData(FILE *fp, int data_size){
   short *outputBuffer = (short*)malloc(data_size);
@@ -285,7 +323,14 @@ short* getWavData(FILE *fp, int data_size){
 /*
  *  Function: convolve
  *
+ *  convolve takes in input wav file data, an input wav file impulse response 
+ * data, the size of each array, and an output array for storing the results
+ * (along with the size of the output array).
  *
+ * If the output is the appropriate size for the inputs, then convolve will 
+ * convolve the two signals in the time domain. As this algorithm is n^2, 
+ * convolve takes a long time to run (upwards of 30-45 minutes for any wav_file
+ * over 2-3 minutes).
  */
 int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *output, int o_size){
   int success = FALSE;
@@ -293,8 +338,6 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
   
   long finished = (long)w_size;
   double curPercent = 0;
-
-  printf("w_size: %d, ir_size: %d, o_size: %d, finished_size: %llu\n", w_size, ir_size, o_size, finished);
 
   //save cursor position for progress
   printf("\033[s");
@@ -332,13 +375,12 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
  * Function: getHeaderInfo
  *
  * Description: getHeaderInfo takes in a file (assumed to be a wav file) and reads
- * the first 44 bytes into a header file struct.
+ * the first 44+ bytes into a header file struct.
  */
 struct WavHeader getHeaderInfo(FILE *fp){
   struct WavHeader header;
   
   if(fp != NULL){
-    //fread(&header, BYTE, HEADER_SIZE, fp);
     fread(&header.file_description_header, sizeof(header.file_description_header), BYTE, fp);
     fread(&header.file_size, sizeof(header.file_size), BYTE, fp);
     fread(&header.file_type,  sizeof(header.file_type), BYTE, fp);
@@ -365,7 +407,14 @@ struct WavHeader getHeaderInfo(FILE *fp){
   return header;
 }
 
+/*
+  cleanup frees any memory that has not been used.
 
+  If the program is in debug mode, certain arrays were not freed to allow for
+  debug information. If we are not in debug mode, then the arrays have already
+  been freed.
+
+ */
 void cleanup(short *wav_data, float *fwav_data, short *ir_data, float *fir_data){
   //if we are not in debug mode, we freed wav_data and ir_data as soon as we were done with them
   //if we are in debug mode, we held off on freeing them to generate debug output
@@ -455,7 +504,8 @@ void displayArray(char *arr, int size){
 }
 
 /*
- *
+ * displayShortArrData displays the elements of a short array from startEl
+ * to startEl + numEls.
  */
 void displayShortArrData(short *arr, int startEl, int numEls){
   int i;
@@ -471,7 +521,8 @@ void displayShortArrData(short *arr, int startEl, int numEls){
 }
 
 /*
- *
+ * displayFloatArrData displays the elements of a float array from startEl
+ * to startEl + numEls.
  */
 void displayFloatArrData(float *arr, int startEl, int numEls){
   int i;
@@ -488,19 +539,22 @@ void displayFloatArrData(float *arr, int startEl, int numEls){
 }
 
 /*
- *
+ *gets the ABSOLUTE max element of a short array
  */
-
 short getMaxElement(short *arr, int numEls){
   int i;
   short max = -32768;
   for(i = 0; i < numEls; i++)
-    if(arr[i] > max)
-      max = arr[i];
+    if(abs(arr[i]) > max)
+      max = abs(arr[i]);
 
   return max;
 }
 
+/*
+  gets the minimum element of a short array
+
+ */
 short getMinElement(short *arr, int numEls){
   int i;
   short min = 32767;
@@ -510,13 +564,16 @@ short getMinElement(short *arr, int numEls){
   
   return min;
 }
+/*
+  gets the ABSOLUTE max element of a float array
 
+ */
 float getMaxElementFloat(float *arr, int numEls){
   int i;
   float max = -1000000;
   for(i = 0; i < numEls; i++)
     if(abs(arr[i]) > max)
-      max = arr[i];
+      max = abs(arr[i]);
   
   return max;
 }

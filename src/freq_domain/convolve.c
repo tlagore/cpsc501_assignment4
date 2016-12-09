@@ -13,8 +13,33 @@
 #define PI 3.141592653589793
 #define TWO_PI 2 * PI
 #define SWAP(a,b) tempr=(a);(a)=(b);(b)=tempr
+#define NEAREST_POW2(a) (1 << ((int)log2(a) + 1))
 
 BOOL _Debug;
+
+
+/*
+  convolve.c
+  
+  convolve takes in a nuber of arguments and produces a convolved wav_file
+  by converting the signals to the frequency domain then multiplying these
+  frequencies.
+
+  The arguments are:
+  argv[0] - program name
+  argv[1] - input wav file for convolution
+  argv[2] - input impulse response file for convolution
+  argv[3] - name of desired output.wav file (existing files overwritten)
+  argv[4] - debug (t)rue or (f)alse. Debug defaults to false on bad input
+
+  currently this program does not work, for more details please see the 
+  commenting on the function convolve().
+
+  As the purpose of this assignment is profiling and optimization, I will
+  run all profiling queries with the assumption that although this program
+  is not producing the correct output - it is taking the same amount of time
+  to do so that it would if it were producing correct results.
+ */
 
 int main(int argc, char*argv[])
 {
@@ -27,7 +52,8 @@ int main(int argc, char*argv[])
     *out_file_str;
 
   short *wav_data,
-    *ir_data;
+    *ir_data,
+    *output;
 
   double *fwav_data,
     *fir_data,
@@ -106,15 +132,7 @@ int main(int argc, char*argv[])
     
     wav_els = wav_header.data_size / wav_header.block_alignment;
     ir_els = ir_header.data_size / ir_header.block_alignment;
-    out_els = wav_els + ir_els - 1;
-   
-    fout_bytes = out_els * BYTES_DOUBLE;
 
-    foutput = malloc(fout_bytes);
-    
-    if(_Debug)
-      printf("Allocating %d bytes for float output samples.\n", fout_bytes);
-    
     if(wav_data == NULL){
       printf("Error allocating memory for wav file data.\n");
       printf("Exitting...\n");
@@ -126,11 +144,13 @@ int main(int argc, char*argv[])
       printf("Exitting...\n");
     }else{
       printf("Beginning convolution...\n");
-      convolve(fwav_data,
+      output = convolve(fwav_data,
 	       wav_els,
 	       fir_data,
-	       ir_els);
-      //saveOutput(out_file_str, foutput, fout_bytes, wav_header);
+	       ir_els,
+	       &fout_bytes);
+
+      saveOutput(out_file_str, output, fout_bytes, wav_header);
       //saveOutput(foutput, out_els);
     }
   }
@@ -142,149 +162,118 @@ int main(int argc, char*argv[])
   return 0;
 }
 
-
-void saveOutput(char *out_file_str, double *foutput, unsigned int fout_bytes,
-		struct WavHeader wav_header){
-  unsigned int out_bytes;
-  short *output;
-  FILE *fp;
-  int iBuffer;
-  int i;
- 
-
-  output = doubleArrToShort(foutput, &out_bytes, fout_bytes, _Debug);
-  if(_Debug == TRUE)
-    printf("Double output bytes: %u\nShort output bytes: %u\nExpected output bytes: %u\n",
-	   fout_bytes, out_bytes, fout_bytes / 2);
-  
-  fp = fopen(out_file_str ,"w+");
-  
-  fwrite("RIFF", 4, BYTE, fp);
-  iBuffer = out_bytes - 36;
-  write_little_endian(iBuffer, BYTES_INT, fp);
-  //fwrite(&iBuffer, BYTES_INT, BYTE, fp);
-  
-  fwrite("WAVE", 4, BYTE, fp);
-  fwrite("fmt ", 4, BYTE, fp);
-
-  //data chunk is 16 bytes long
-  iBuffer = 16;
-  fwrite(&iBuffer, BYTES_INT, BYTE, fp);
-  //same format as header
-  write_little_endian(wav_header.format_type, sizeof(wav_header.format_type), fp);
-  write_little_endian(wav_header.num_channels, sizeof(wav_header.num_channels), fp);
-  write_little_endian(wav_header.sample_rate, sizeof(wav_header.sample_rate), fp);
-  write_little_endian(wav_header.byte_rate, sizeof(wav_header.byte_rate), fp);
-  write_little_endian(wav_header.block_alignment, sizeof(wav_header.block_alignment), fp);
-  write_little_endian(wav_header.bits_per_sample, sizeof(wav_header.bits_per_sample), fp);
-     
-  fwrite("data", 4, BYTE, fp);
-  write_little_endian(out_bytes, BYTES_INT, fp);
-
-  if(_Debug == TRUE)
-    printf("Header data printed to %s\n", out_file_str);
-
-  printf("outbytes before write %u\n", out_bytes);
-  
-  for(i = 0; i < out_bytes / 2; i++)
-    write_little_endian((unsigned int)(output[i]), sizeof(wav_header.block_alignment), fp);
-
-  if(_Debug == TRUE)
-    printf("Convoluted sample data written to file.\n");
-
-  free(output);
-  fclose(fp);
-}
-
-void write_little_endian(unsigned int output, int bytes, FILE *fp)
-{
-    unsigned ch;
-    while(bytes > 0)
-    {
-        ch = output & 0xff;
-        fwrite(&ch, 1, 1, fp);
-        bytes--;
-	output >>= 8;
-    }
-}
-
 /*
- * Function: getWavData
- * 
- * Description: 
- */
-short* getWavData(FILE *fp, int data_size){
-  short *outputBuffer = (short*)malloc(data_size);
-  int i;
-  if(fp != NULL && outputBuffer != NULL){
-    //read data_size BYTES from fp into outputBuffer
-    i = fread(outputBuffer, BYTE, data_size, fp);
-  }
+  convolve
+
+  convolve takes in an wav files data as well as an impulse response wav files data,along with the size of each data set (in elements) and attempts to convolve
+  the two signals by the following process:
   
-  if(_Debug == TRUE)
-    printf("getWavData: %d bytes read. Expected %d bytes.\n", i, data_size);
+  the wav_data and ir_data are placed in new arrays. Their array size is determined  by the size of the required output (wav_size + ir_size - 1), multiplied by 2 
+  (to account for imaginary numbers), then rounded to the nearest power of 2
+  (required for the fft usage).
 
-  return outputBuffer;
-}
+  Each of these arrays is then modified to have 0s every second element to make
+  space for imaginary numbers produced by the FFT.
 
-/*
- *  Function: convolve
- *
- *
+  Once both arrays have been run through the FFT function, their contents are
+  multiplied together with complex multiplication.
+
+  The result of this computation is then run through an inverse FFT and every
+  element is divided by the size of the array.
+
+  Finally, the array is normalized to have the largest element be the maximum
+  size of a 16 bit integer (32767) and is copied over to a short array and 
+  returned.
+
+KNOWN BUGS:
+This convolve method does not work. I believe that the logic is sound, but 
+there is a bug somewhere (possibly multiple) that is causing the output
+to be flawed.
+
+However, as the point of the assignment is optimization - I am certain that 
+the convolve algorithm with the FFT as its root is taking the same amount of 
+time that it would be with correct results. As such, I will run profiling tests
+on this new code with the assumption that although it may not be producing
+the proper output, it is taking the same amount of time to produce erroneous output
+and is valid for profile testing.
  */
-BOOL convolve(double *wav_data, int w_size, double *ir_data, int ir_size)
+short* convolve(double *wav_data, int w_size, double *ir_data, int ir_size, int *num_bytes)
 {
   BOOL success = FALSE;
-  int i, j, ir_out_size, wav_out_size;
-  unsigned int segment_size, w_size_fft, ir_size_fft;
-  double *wav_output, *ir_output;
+  int ir_out_size, wav_out_size;
+  unsigned int w_size_fft;
+  double *wav_freq_response, *ir_freq_response;
+  short *output;
+  int out_bytes;
   
-  //do 1024 bytes at a time
-  segment_size = 1024;
+  out_bytes = ir_size + w_size - 1;
 
-  //make sure new output size is a multiple of 1024
-  w_size_fft = w_size + (w_size % segment_size);
-  ir_size_fft = w_size + (ir_size % segment_size);
+  w_size_fft = NEAREST_POW2(out_bytes * 2);
 
-  //require 2x the size for real and imaginary and allocate #bytes in double for each element
-  wav_out_size = (w_size_fft * BYTES_DOUBLE) << 1;
-  ir_out_size = (ir_size_fft * BYTES_DOUBLE) << 1;
-
-  //allocate
-  wav_output = (double*)malloc(wav_out_size);
-  ir_output = (double*)malloc(ir_out_size);
-
-  //spread the data out to make room for imaginary numbers
-  preprocessData(wav_output, wav_data, w_size);
-  preprocessData(ir_output, ir_data, ir_size);
-
+  //make them both the same length for later multiplication
+  wav_freq_response = makeFFTCompatible(wav_data, w_size, w_size_fft);
+  ir_freq_response = makeFFTCompatible(ir_data, ir_size, w_size_fft);
+  
   if(_Debug){
     printf("Array post processing sample: Data should be spread data[1], 0, data[2], 0...\n");
     displayDoubleArrData(wav_data, w_size / 4, 6);
-    displayDoubleArrData(wav_output, w_size / 2, 12);
+    displayDoubleArrData(wav_freq_response, w_size / 2, 12);
   }
   
-  for(i = 0; i < w_size_fft; i+=segment_size){
-    fft((wav_output + i) - 1, segment_size >> 1, 1);
-  }
-
-  for(i = 0; i < ir_size_fft; i+= segment_size){
-    fft((wav_output + i) - 1, segment_size >> 1, 1);
+  if(!_Debug){
+    free(wav_data);
+    free(ir_data);
   }
 
-  
-  
-  return success;
-}
+  if(wav_freq_response != NULL && ir_freq_response != NULL){
+    //1 for FFT
+    //use w_size_fft, they are both the same size
 
-void preprocessData(double *dataOut, double *dataIn, int numEls){
-  int i;
-  double temp;
-  
-  for(i = 0; i < numEls; i+=2){
-    dataOut[i] = dataIn[i/2];
-    dataOut[i+1] = 0.0;
+    if(_Debug)
+      printf("First FFT input wav\n");
+    fft(wav_freq_response - 1, w_size_fft >> 1, 1);
+    //postprocessData(wav_freq_response, w_size);
+    
+    if(_Debug)
+      printf("Second FFT freq response\n");
+    fft(ir_freq_response - 1, w_size_fft >> 1, 1);
+    // postprocessData(ir_freq_response, w_size);
+
+    if(_Debug)
+      printf("Multiplying complex\n");
+    //multiplyComplex stores results in first array argument   
+    multiplyComplex(wav_freq_response, ir_freq_response, w_size_fft);
+
+    if(_Debug)
+      printf("Inverse FFT\n");
+
+    //convert back to time domain
+    fft(wav_freq_response - 1, w_size_fft >> 1, -1);
+    //normalize, divide by n
+    normalizeArray(wav_freq_response, w_size_fft, w_size_fft >> 1);
+    //postprocessData(wav_freq_response, w_size_fft);
+
+    displayDoubleArrData(wav_freq_response, w_size / 4, 10);
+
+    double maxElement = getMaxElementDouble(wav_freq_response, w_size_fft);
+
+    if(maxElement > 32767){
+      normalizeArray(wav_freq_response, w_size_fft, maxElement / 32767);
+    }
+
+    postprocessData(wav_freq_response, w_size_fft);
+    
+    output = doubleArrToShort(wav_freq_response, num_bytes,
+			      out_bytes * BYTES_DOUBLE,
+			      _Debug);
+
+    displayShortArrData(output, *num_bytes / 4, 10);
+			      
+  }else{
+    printf("Error allocating data to convolve. Exitting...\n");
   }
+
+  return output;
 }
 
 /*
@@ -297,7 +286,7 @@ void preprocessData(double *dataOut, double *dataIn, int numEls){
 
   Code assumes the array starts at index 1, not 0, so 1 must be subtracted from data pointer
   before calling.
- */
+*/
 
 void fft(double data[], int nn, int isign)
 {
@@ -353,6 +342,203 @@ void fft(double data[], int nn, int isign)
 }
 
 /*
+  normalizeArray takes in an array of data, the size of the array,
+  and a divisor and divides every element of the array by this divisor.
+
+ */
+void normalizeArray(double *arr, unsigned int size, double divisor){
+  unsigned int i;
+  for(i = 0; i < size; i++){
+    arr[i] /= divisor;
+  }
+}
+
+/*
+  multiplyComplex takes in two arrays assumed to hold complex numbers
+  in the format [R, I, R, I] where the combination of the two represents
+  the (R)eal and (I)maginary and multiplies the elements.
+
+  multiplyComplex assumes that both arrays are of the same size and 
+  stores the results of the computation in a.
+ */
+void multiplyComplex(double *a, double *b, int size){
+  int i;
+
+  for(i = 0; i < size - 1; i+=2){
+    a[i] = (a[i] * b[i]) - (a[i+1] * b[i+1]);
+    a[i+1] = (a[i+1] * b[i]) + (a[i] * b[i+1]);
+  }
+}
+
+/*
+  makeFFTCompatibe takes in an array of data, the length of the data
+  and the desired size of the FFT compatible array. It then allocates
+  an array with enough memory to hold this end size and then calls
+  preprocessData to pad each element with space for an imaginary number.
+
+  It is assumed that endSize is at least 2x the size of length, as 
+  each element will have an associated imaginary number and preprocessData
+  does not check to ensure this correctness.
+ */
+double *makeFFTCompatible(double *data, int length, int endSize){
+  if(_Debug)
+    printf("in makeFFTCompatible, allocating new space for array.\n");
+  
+  //calloc to 0 out allocated memory
+  double *out = calloc(endSize, BYTES_DOUBLE);
+
+  if(out != NULL){
+  //shift array to make room for imaginary numbers
+    preprocessData(out, data, length);
+  }
+
+  return out;
+}
+
+/*
+  preprocessData takes in an array to store output, the input array,
+  and the number of elements in the input array and stores the data 
+  in the output array leaving space for imaginary numbers every 2nd element.
+
+  It is assumed that the supplied output array is at least 2x the size of
+  the input array. An example input/output of this function would be:
+  
+  dataIn = (1, 2, 3, 4)
+  numEls = 4
+  dataOut = (0, 0, 0, 0, 0, 0, 0, 0)
+
+  after processing:
+  dataOut = (1, 0, 2, 0, 3, 0, 4, 0)
+ */
+void preprocessData(double *dataOut, double *dataIn, int numEls){
+  int i;
+
+  if(_Debug)
+    printf("in preprocessData, 0 separating data of array for imaginary numbers");
+  
+  for(i = 0; i < numEls; i+=2){
+    dataOut[i] = dataIn[i/2];
+    dataOut[i+1] = 0.0;
+  }
+}
+
+/*
+  postprocessData assumes that the arra passed in is in the form
+  Real, Imaginary, Real, Imaginary, etc.
+
+  As there is no imaginary number that can be written to output, 
+  the array is condensed to not include these elements.
+  The result of an array such as (1, 2i, 3, 4i)
+  would be (1, 3, 0, 0)
+
+ */
+void postprocessData(double *dataOut, unsigned int numEls){
+  int i, j;
+
+  for(i = 0, j = 1; i < numEls / 2; i+=2){
+    dataOut[i] = dataOut[(j-1)*2];
+  }
+
+  for(i = numEls / 2; i < numEls; i++){
+    dataOut[i] = 0.0;
+  }
+}
+/*
+  saveOutput
+
+  Description: saveOutput takes in a filename, a short array assumed to 
+  contain the data portion of a wav file, the number of bytes in this
+  data, and a WavHeader struct meant to describe the wav file being written.
+
+  It creates a new file with name out_file_str and writes the header
+  content of the wav file in proper order, followed by the data.
+
+  the resulting file should be a playable wav file if no data was corrupted.
+ */
+void saveOutput(char *out_file_str, short *output, unsigned int out_bytes,
+		struct WavHeader wav_header){
+  FILE *fp;
+  int iBuffer;
+  int i;
+
+  fp = fopen(out_file_str ,"w+");
+  
+  fwrite("RIFF", 4, BYTE, fp);
+  iBuffer = out_bytes - 36;
+  write_little_endian(iBuffer, BYTES_INT, fp);
+  //fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  
+  fwrite("WAVE", 4, BYTE, fp);
+  fwrite("fmt ", 4, BYTE, fp);
+
+  //data chunk is 16 bytes long
+  iBuffer = 16;
+  fwrite(&iBuffer, BYTES_INT, BYTE, fp);
+  //same format as header
+  write_little_endian(wav_header.format_type, sizeof(wav_header.format_type), fp);
+  write_little_endian(wav_header.num_channels, sizeof(wav_header.num_channels), fp);
+  write_little_endian(wav_header.sample_rate, sizeof(wav_header.sample_rate), fp);
+  write_little_endian(wav_header.byte_rate, sizeof(wav_header.byte_rate), fp);
+  write_little_endian(wav_header.block_alignment, sizeof(wav_header.block_alignment), fp);
+  write_little_endian(wav_header.bits_per_sample, sizeof(wav_header.bits_per_sample), fp);
+     
+  fwrite("data", 4, BYTE, fp);
+  write_little_endian(out_bytes, BYTES_INT, fp);
+
+  if(_Debug == TRUE)
+    printf("Header data printed to %s\n", out_file_str);
+
+  printf("outbytes before write %u\n", out_bytes);
+  
+  for(i = 0; i < out_bytes / 2; i++)
+    write_little_endian((unsigned int)(output[i]), sizeof(wav_header.block_alignment), fp);
+
+  if(_Debug == TRUE)
+    printf("Convoluted sample data written to file.\n");
+
+  free(output);
+  fclose(fp);
+}
+
+/*
+  write_little_endian takes in an unsigned integer that needs to be 
+  written as little endian and writes the bytes of the output to
+  the little endian specification.
+ */
+void write_little_endian(unsigned int output, int bytes, FILE *fp)
+{
+    unsigned ch;
+    while(bytes > 0)
+    {
+        ch = output & 0xff;
+        fwrite(&ch, 1, 1, fp);
+        bytes--;
+	output >>= 8;
+    }
+}
+
+/*
+ * Function: getWavData
+ * 
+ * Description: getWavData reads in the wav data portion of the wav file.
+ * getWavData assumes that the fp passed in was used to read the header
+ * file for the wav file up to the point where the wav data is located.
+ */
+short* getWavData(FILE *fp, int data_size){
+  short *outputBuffer = (short*)malloc(data_size);
+  int i;
+  if(fp != NULL && outputBuffer != NULL){
+    //read data_size BYTES from fp into outputBuffer
+    i = fread(outputBuffer, BYTE, data_size, fp);
+  }
+  
+  if(_Debug == TRUE)
+    printf("getWavData: %d bytes read. Expected %d bytes.\n", i, data_size);
+
+  return outputBuffer;
+}
+
+/*
  * Function: getHeaderInfo
  *
  * Description: getHeaderInfo takes in a file (assumed to be a wav file) and reads
@@ -362,7 +548,6 @@ struct WavHeader getHeaderInfo(FILE *fp){
   struct WavHeader header;
   
   if(fp != NULL){
-    //fread(&header, BYTE, HEADER_SIZE, fp);
     fread(&header.file_description_header, sizeof(header.file_description_header), BYTE, fp);
     fread(&header.file_size, sizeof(header.file_size), BYTE, fp);
     fread(&header.file_type,  sizeof(header.file_type), BYTE, fp);
