@@ -40,7 +40,7 @@ freq_d: $(FREQ_OBJS)
 	$(call printUsage,freq)
 
 freq_d_gprof: $(FREQ_OBJS)
-	$(CC) -pg -o $(FREQ_TARGET_GPROF) $(FREQ_OBS) $(LINK)
+	$(CC) -pg -o $(FREQ_TARGET_GPROF) $(FREQ_OBJS) $(LINK)
 	rm -f *.o
 	@echo -e '\nCompiled with -pg, use gprof $(FREQ_TARGET_GPROF)'
 	$(call printUsage,freq_gp)
