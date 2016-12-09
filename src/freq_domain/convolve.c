@@ -139,9 +139,6 @@ int main(int argc, char*argv[])
     }else if(ir_data == NULL){
       printf("Error allocating memory for impulse response file data.\n");
       printf("Exitting...\n");
-    }else if(foutput == NULL){
-      printf("Error allocating memory for output file data.\n");
-      printf("Exitting...\n");
     }else{
       printf("Beginning convolution...\n");
       output = convolve(fwav_data,
@@ -157,7 +154,6 @@ int main(int argc, char*argv[])
 
   if(_Debug)
     printf("Cleaning up data, freeing memory.");
-  cleanup(wav_data, fwav_data, ir_data, fir_data);
    
   return 0;
 }
@@ -220,10 +216,8 @@ short* convolve(double *wav_data, int w_size, double *ir_data, int ir_size, int 
     displayDoubleArrData(wav_freq_response, w_size / 2, 12);
   }
   
-  if(!_Debug){
-    free(wav_data);
-    free(ir_data);
-  }
+  free(wav_data);
+  free(ir_data);
 
   if(wav_freq_response != NULL && ir_freq_response != NULL){
     //1 for FFT
@@ -268,6 +262,9 @@ short* convolve(double *wav_data, int w_size, double *ir_data, int ir_size, int 
 			      _Debug);
 
     displayShortArrData(output, *num_bytes / 4, 10);
+
+    free(wav_freq_response);
+    free(ir_freq_response);
 			      
   }else{
     printf("Error allocating data to convolve. Exitting...\n");
@@ -363,6 +360,7 @@ void normalizeArray(double *arr, unsigned int size, double divisor){
  */
 void multiplyComplex(double *a, double *b, int size){
   int i;
+  
 
   for(i = 0; i < size - 1; i+=2){
     a[i] = (a[i] * b[i]) - (a[i+1] * b[i+1]);
@@ -572,19 +570,6 @@ struct WavHeader getHeaderInfo(FILE *fp){
   }
   
   return header;
-}
-
-
-void cleanup(short *wav_data, double *fwav_data, short *ir_data, double *fir_data){
-  //if we are not in debug mode, we freed wav_data and ir_data as soon as we were done with them
-  //if we are in debug mode, we held off on freeing them to generate debug output
-  if(_Debug){
-    free(wav_data);
-    free(ir_data);
-  }
-  
-  free(fwav_data);
-  free(fir_data);
 }
 
 

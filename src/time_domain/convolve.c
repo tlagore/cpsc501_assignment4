@@ -282,9 +282,10 @@ short* floatArrToShort(float* arr, unsigned int *out_bytes, unsigned int size, f
   //ensure we are short aligned. Also need half the number of bytes for short
   (*out_bytes) = (size + size % BYTES_SHORT) / 2;
   output = malloc(*out_bytes);
+  short intMultiplier = (short)multiplier;
   if(output != NULL){
     for (i = 0; i < (size / BYTES_FLOAT); i++){
-      output[i] = (short)(arr[i] * multiplier);
+      output[i] = (short)(arr[i] * intMultiplier);
     }
 
     if(_Debug == FALSE){
@@ -336,28 +337,43 @@ int convolve(float *wav_data, int w_size, float *ir_data, int ir_size, float *ou
   int success = FALSE;
   int wav_index, ir_index, out_index;
   
-  long finished = (long)w_size;
+  long finished = (long)ir_size;
   double curPercent = 0;
 
   //save cursor position for progress
   printf("\033[s");
   fflush(stdout);
+  float ir_val;
   
   if(o_size == (w_size + ir_size - 1)){
     for(out_index = 0; out_index < o_size; out_index++)
       output[out_index] = 0;
-    
-    for(wav_index = 0; wav_index < w_size; wav_index++){
-      for(ir_index = 0; ir_index < ir_size; ir_index++){
-	output[wav_index + ir_index] += wav_data[wav_index] * ir_data[ir_index];
+
+
+    for(ir_index = 0; ir_index < ir_size; ir_index++){
+      ir_val = ir_data[ir_index];
+      for(wav_index = 0; wav_index < w_size; wav_index+=3)
+	{
+	  output[wav_index + ir_index] += wav_data[wav_index] * ir_val;
+	  output[wav_index + 1 + ir_index] += wav_data[wav_index + 1] * ir_val;
+	  output[wav_index + 2 + ir_index] += wav_data[wav_index + 2] * ir_val;
+	}
+
+      if(wav_index == (w_size - 2)){
+	output[wav_index + ir_index - 2] += wav_data[wav_index - 2] * ir_val;
+	output[wav_index + ir_index - 1] += wav_data[wav_index - 1] * ir_val;
       }
 
-      curPercent = (double)((double)wav_index / (double)finished) * 100;
+      if(wav_index == (w_size - 1)){
+	output[wav_index + ir_index - 1] += wav_data[wav_index - 1] * ir_val;
+      }
+
+      curPercent = (double)((double)ir_index / (double)finished) * 100;
       printf(" %.2f%%", curPercent);
       printf("\033[u");
       fflush(stdout);
     }
-    
+       
     printf("100.00%%\n");
     
     success = TRUE;

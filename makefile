@@ -20,12 +20,13 @@ all:
 	make freq_d
 
 time_d:	$(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
-	$(CC) -o $(TIME_TARGET) $(TIME_DIR)/$(TARGET).c
+	$(CC) -o $(TIME_TARGET) $(TIME_DIR)/$(TARGET).c $(opt)
 	$(call printUsage,time)
 
 time_d_gprof: $(TIME_DIR)/convolve.c $(TIME_DIR)/convolve.h
 	$(CC) -pg -o $(TIME_TARGET_GPROF) $(TIME_DIR)/$(TARGET).c
-	@echo -e '\nCompiled with -pg, use gprof $(TIME_TARGET_GPROF)'
+	@echo 'Optimization set to $(opt)'
+	@echo -e '\nCompiled with -pg, use $(TIME_TARGET_GPROF), then gprof $(TIME_TARGET_GPROF) gmon.out > out.txt'
 	$(call printUsage,time_gp)
 
 convolve.o: $(FREQ_DIR)/convolve.c $(FREQ_DIR)/convolve.h $(FREQ_DIR)/utils.h
@@ -40,9 +41,9 @@ freq_d: $(FREQ_OBJS)
 	$(call printUsage,freq)
 
 freq_d_gprof: $(FREQ_OBJS)
-	$(CC) -pg -o $(FREQ_TARGET_GPROF) $(FREQ_OBJS) $(LINK)
-	rm -f *.o
-	@echo -e '\nCompiled with -pg, use gprof $(FREQ_TARGET_GPROF)'
+	$(CC) $(opt) -pg -o $(FREQ_TARGET_GPROF) $(FREQ_OBJS) $(LINK)
+	@echo 'Optimization set to $(opt) (if not set use make opt=-o1,-o2,-o3 target)'
+	@echo -e '\nCompiled with -pg, use $(FREQ_TARGET_GPROF), then gprof $(FREQ_TARGET_GPROF) gmon.out > out.txt'
 	$(call printUsage,freq_gp)
 
 clean:

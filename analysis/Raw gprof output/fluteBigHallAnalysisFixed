@@ -1,0 +1,19 @@
+Time domain                                           
+time       Time      secondscalls   Ks/call Ks/call   Function Name        
+     100.131923.87  11923.87       1    1.92      1.92convolve             
+          0   1923.89   0.02       2       0         0 shortArrToFloat     
+          0   1923.91   0.02       1       0         0 floatArrToShort     
+          0   1923.92   0.01 2758621       0         0 write_little_endian 
+          0   1923.93   0.01       2       0         0 getMaxElement       
+          0   1923.94   0.01       2       0         0 getMinElement       
+          0   1923.95   0.01       1       0         0 getMaxElementFloat  
+          0   1923.96   0.01       1       0         0 saveOutput          
+          0   1923.96      0       8       0         0 displayArray        
+          0   1923.96      0       4       0         0 displayArrayHeaderFi
+          0   1923.96      0       2       0         0 displayFloatArrData 
+          0   1923.96      0       2       0         0 displayHeaderInfo   
+          0   1923.96      0       2       0         0 displayShortArrData 
+          0   1923.96      0       2       0         0 getHeaderInfo       
+          0   1923.96      0       2       0         0 getWavData          
+          0   1923.96      0       1       0         0 cleanup             
+          0   1923.96      0       1       0         0 displayTestInformati

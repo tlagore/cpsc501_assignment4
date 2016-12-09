@@ -1,0 +1,131 @@
+commit ccbd395190aa53b788fe988646edbb15b2c8504a
+Author: TyroneL <tyronelagore@gmail.com>
+Date:   Thu Dec 8 19:57:22 2016 -0700
+
+    fixed makefile to properly compile gprof on frequency convolve.c
+
+commit e7607fcb275f5244e7cbd44909e74e959e585043
+Author: TyroneL <tyronelagore@gmail.com>
+Date:   Thu Dec 8 19:55:09 2016 -0700
+
+    Ive mostly given up on trying to be able to get the frequency domain convolution to work. Need to finish profiling, refactoring, and writeups and there isnt enough time. The frequency domain convolution SHOULD be taking as much time as it would be taking if it was producing proper output, so I will profile on it regardless.
+
+commit 6e869a0005c4d825aeb7c2d5f262d486e84296e5
+Author: tyrone.lagore <tyrone.lagore@gfx03-sc.cs.ucalgary.ca>
+Date:   Wed Dec 7 22:06:34 2016 -0700
+
+    implemented fft. Appears to be working, but how would i know!? Still need to divide samples by N, perform multiplication, and send the data back through the inverse fft.
+
+commit c161620dcb7006c1fa71a68df29b38b1cacc705b
+Author: tyrone.lagore <tyrone.lagore@gfx03-sc.cs.ucalgary.ca>
+Date:   Wed Dec 7 19:53:50 2016 -0700
+
+    Added file structure for time_domain version and frequency_domain version of the project. Moved shared files to a shared directory and updated the makefile to handle the new directory tree. Refactored some generic array functionality into a new c file, utils
+
+commit 88703fded0b6c52a06ec7f7b4580a1ffb890bebf
+Author: tyrone.lagore <tyrone.lagore@zone18-wa.cs.ucalgary.ca>
+Date:   Tue Dec 6 18:39:34 2016 -0700
+
+    added extra functionality to makefile
+
+commit 522085fbed17cee58ce42e7a6a6028b00ed2a423
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Wed Nov 30 10:18:24 2016 -0700
+
+    added ~ files to gitignore and removed .gitignore~ from cache
+
+commit c122dd68ece56dbcf1df8a028c0b620089cf887b
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Wed Nov 30 10:12:55 2016 -0700
+
+    removed a wav file from git repo
+
+commit 41736c2ff9e78472d3f9a51144e464bbd3114295
+Author: tyrone.lagore <tyrone.lagore@zone51-wc.cs.ucalgary.ca>
+Date:   Tue Nov 29 20:38:26 2016 -0700
+
+    Found bugs in write to wav file. Wasnt writing properly in little endian. Also found bugs with writing file. Was allocated half the necessary space for the float array, fixed these issues.  Also added a normalization function that ensures all float values from the convolution are between -1.0 and 1.0 which has eliminated most of the static coming from the produced wave files. Some wave files produce a little bit of static, this could be due to the quality of the original wav file, or the normaliz method might not be aggressive enough.
+
+commit 256df1390150d90af7eb088580914367c2791a61
+Author: tyrone.lagore <tyrone.lagore@csx2.cs.ucalgary.ca>
+Date:   Tue Nov 29 12:06:57 2016 -0700
+
+    Fixed seg fault
+
+commit a55acf4e3dc7995c57f317caa1195ef05cbac8ed
+Author: tyrone.lagore <tyrone.lagore@csx2.cs.ucalgary.ca>
+Date:   Tue Nov 29 10:53:32 2016 -0700
+
+    Got convolve working with % display to show progress. Getting a segmentation fault when trying to write the data to file.
+
+commit d96e3ccb7a40e4b15b7e1b2a91525d204cb7f968
+Author: tyrone.lagore <tyrone.lagore@gfx03-sa.cs.ucalgary.ca>
+Date:   Sun Nov 27 14:48:03 2016 -0700
+
+    fixed bug with reading a header from a wav file where the header size was *not* 44 bytes. Should now account for extra parameters based on the chunk side found within the header.
+
+commit 65a3ee1ca1d1cd520c513dd845e74b8add41625a
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sun Nov 27 01:06:04 2016 -0700
+
+    found a bug when converting int array to float array. documentation would suggest that float and int take up the same amount memory, practice would disagree.
+
+commit 1231e242ae5bf897ba231a048021b03308c7d6b5
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 22:40:03 2016 -0700
+
+    added comments to various functions
+
+commit 3f626141acee5920fa7525db67b37383c5dfb3cd
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 20:16:45 2016 -0700
+
+    changed wav_data, ir_data, and output data arrays to float* instead of char*. Added convolve function which follows the alogrithm from class. Have not yet tested.
+
+commit 43aeae2c1b3d0d8516b5a4a8e6180586ecd7deb6
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 20:06:33 2016 -0700
+
+    fixed bug where output buffer could not be allocated. Was using int instead of unsigned int and was probably passing a negative value to malloc. Also added typedefs.h which specifies various define macros for types, such as TRUE = 1 and FALSE = 0
+
+commit 2cab5b2c8c6103359cb9ce73adfb31870e7ba113
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 19:48:20 2016 -0700
+
+    added a new function char* getWaveData(FILE *fp, int data_size) which takes in a file point and attempts to read data_size bytes from the wav file and return the data as a char*
+
+commit c6c994198fa7f44d1e58fa3e710a4ee35c4af063
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 19:03:02 2016 -0700
+
+    Added a function to read in the header data of the input wav file and the impulse response wav file. The first 44 bytes of the file are copied into a header struct to hold the information. Also added a new function displayHeaderInfo(stuct WavHeader) which displays the contents of the header to screen. Wrote 2 helper functions to achieve this, displayArray(char*,int size) and displayArrayHeaderfield(char* arr, int size, char* fieldName)
+
+commit a0eb7be5068694378910c4436dfa1092e8d07eb7
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 17:51:39 2016 -0700
+
+    Added argument reading to time_d_conv. Usage is ./time_d_conv wav_file impulse_response_file
+
+commit 1d96aea902c8dd4ee30be81b94d82e1ccc9ab859
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 16:37:47 2016 -0700
+
+    edited gitignore to ignore bin files, but not the directory itself (useful if someone else pulse and tries to make, so bin directory exists)
+
+commit 031bb7b192dbfc076c41b11f165729c2bb39a1b4
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 16:36:26 2016 -0700
+
+    added wav_files to project directory and created gitignore to ignore them as well as source files. Restructured directory to have a src and bin directory. makefile now makes from src and stores executable in bin.
+
+commit d79804b12105e14be0cdc9b37cd25c82fce27aa5
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 14:55:50 2016 -0700
+
+    created wav_header.h which holds the definition for a struct that defines the format of a .wav file.
+
+commit e7cb67af9dacfd404ddafdaaf82aa43ac15a75ed
+Author: tyrone.lagore <tyrone.lagore@csx3.cs.ucalgary.ca>
+Date:   Sat Nov 26 14:25:12 2016 -0700
+
+    Initial import
